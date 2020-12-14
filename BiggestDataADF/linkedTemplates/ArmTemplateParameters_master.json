@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "BiggestDataADF"
+		},
+		"PSTSSIS_connectionString": {
+			"value": ""
+		},
+		"SSISBlob_connectionString": {
+			"value": ""
+		},
+		"RestApiSource_properties_typeProperties_url": {
+			"value": "https://api.mocki.io/v1/b043df5a"
+		},
+		"RestService2_properties_typeProperties_url": {
+			"value": "https://api.exchangeratesapi.io/latest?base=AUD"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}

@@ -1,0 +1,207 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "BiggestDataADF"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Load_Excel_to_MultiTables')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Load_Excel_to_Multi_Tables",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "Lookup1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "Load_Excel_to_Multi_Tables",
+								"type": "DataFlowReference",
+								"datasetParameters": {
+									"source1": {
+										"pFileName": "product_order.xlsx"
+									},
+									"sink2": {
+										"pTableName": "dwsOrders"
+									},
+									"sink3": {
+										"pTableName": "dwsProducts"
+									}
+								}
+							},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select Value from dbo.PSTConfigs where \"Key\"='SSISAdminEmail'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference",
+								"parameters": {
+									"pTableName": "PSTConfigs"
+								}
+							}
+						}
+					},
+					{
+						"name": "SendEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Load_Excel_to_Multi_Tables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Finished\",\n\"message\":\"Pipleline Run SuccessFully\",\n\"color\":\"green\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SendErrorEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Load_Excel_to_Multi_Tables",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Failed\",\n\"message\":\"Pipleline Run Failed\",\n\"color\":\"red\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-12-11T11:03:42Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/Load_Excel_to_Multi_Tables')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Load_Excel_to_Multi_Tables')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ExcelSource",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						},
+						{
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference"
+							},
+							"name": "sink3"
+						}
+					],
+					"transformations": [
+						{
+							"name": "Select1"
+						},
+						{
+							"name": "AlterRow2"
+						},
+						{
+							"name": "Select2"
+						},
+						{
+							"name": "AlterRow3"
+						}
+					],
+					"script": "source(output(\n\t\tOrderID as string,\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as short,\n\t\tValidDate as date\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> source1\nsource1 select(mapColumn(\n\t\tOrderID,\n\t\tValidDate\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nSelect1 alterRow(upsertIf(true())) ~> AlterRow2\nsource1 select(mapColumn(\n\t\tOrderID,\n\t\tProductID,\n\t\tProductName,\n\t\tPrice\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select2\nSelect2 alterRow(upsertIf(true())) ~> AlterRow3\nAlterRow2 sink(input(\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as double,\n\t\tValidDate as timestamp\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['OrderID'],\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink2\nAlterRow3 sink(input(\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as double,\n\t\tValidDate as timestamp\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['ProductID'],\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink3"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

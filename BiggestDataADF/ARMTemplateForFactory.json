@@ -1,0 +1,1155 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "BiggestDataADF"
+		},
+		"PSTSSIS_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'PSTSSIS'"
+		},
+		"SSISBlob_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'SSISBlob'"
+		},
+		"RestApiSource_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://api.mocki.io/v1/b043df5a"
+		},
+		"RestService2_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://api.exchangeratesapi.io/latest?base=AUD"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Load_Excel_to_MultiTables')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Load_Excel_to_Multi_Tables",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "Lookup1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "Load_Excel_to_Multi_Tables",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"source1": {
+										"pFileName": "product_order.xlsx"
+									},
+									"sink2": {
+										"pTableName": "dwsOrders"
+									},
+									"sink3": {
+										"pTableName": "dwsProducts"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select Value from dbo.PSTConfigs where \"Key\"='SSISAdminEmail'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference",
+								"parameters": {
+									"pTableName": "PSTConfigs"
+								}
+							}
+						}
+					},
+					{
+						"name": "SendEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Load_Excel_to_Multi_Tables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Finished\",\n\"message\":\"Pipleline Run SuccessFully\",\n\"color\":\"green\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SendErrorEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Load_Excel_to_Multi_Tables",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Failed\",\n\"message\":\"Pipleline Run Failed\",\n\"color\":\"red\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-12-11T11:03:42Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/Load_Excel_to_Multi_Tables')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSqlDest')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_ExchangeRateRestApi')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy data1",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "$['rates']['CAD']"
+										},
+										"sink": {
+											"name": "CAD"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['HKD']"
+										},
+										"sink": {
+											"name": "HKD",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['ISK']"
+										},
+										"sink": {
+											"name": "ISK",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['PHP']"
+										},
+										"sink": {
+											"name": "PHP",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['DKK']"
+										},
+										"sink": {
+											"name": "DKK",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['HUF']"
+										},
+										"sink": {
+											"name": "HUF",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['CZK']"
+										},
+										"sink": {
+											"name": "CZK",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['GBP']"
+										},
+										"sink": {
+											"name": "GBP",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['RON']"
+										},
+										"sink": {
+											"name": "RON",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['SEK']"
+										},
+										"sink": {
+											"name": "SEK",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['IDR']"
+										},
+										"sink": {
+											"name": "IDR",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['INR']"
+										},
+										"sink": {
+											"name": "INR",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['BRL']"
+										},
+										"sink": {
+											"name": "BRL",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['RUB']"
+										},
+										"sink": {
+											"name": "RUB",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['HRK']"
+										},
+										"sink": {
+											"name": "HRK",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['JPY']"
+										},
+										"sink": {
+											"name": "JPY",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['THB']"
+										},
+										"sink": {
+											"name": "THB",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['CHF']"
+										},
+										"sink": {
+											"name": "CHF",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['EUR']"
+										},
+										"sink": {
+											"name": "EUR",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['MYR']"
+										},
+										"sink": {
+											"name": "MYR",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['BGN']"
+										},
+										"sink": {
+											"name": "BGN",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['TRY']"
+										},
+										"sink": {
+											"name": "TRY",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['CNY']"
+										},
+										"sink": {
+											"name": "CNY",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['NOK']"
+										},
+										"sink": {
+											"name": "NOK",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['NZD']"
+										},
+										"sink": {
+											"name": "NDZ",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['ZAR']"
+										},
+										"sink": {
+											"name": "ZAR",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['USD']"
+										},
+										"sink": {
+											"name": "USD",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['MXN']"
+										},
+										"sink": {
+											"name": "MXN",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['SGD']"
+										},
+										"sink": {
+											"name": "SGD",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['AUD']"
+										},
+										"sink": {
+											"name": "AUD",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['ILS']"
+										},
+										"sink": {
+											"name": "ILS",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['KRW']"
+										},
+										"sink": {
+											"name": "KRW",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['rates']['PLN']"
+										},
+										"sink": {
+											"name": "PLN",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "$['base']"
+										},
+										"sink": {
+											"name": "Base",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['date']"
+										},
+										"sink": {
+											"name": "Date",
+											"type": "DateTime"
+										}
+									}
+								],
+								"mapComplexValuesToString": false
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "RestResource2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference",
+								"parameters": {
+									"pTableName": "dwsExchangeRate"
+								}
+							}
+						]
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-12-11T09:30:26Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/RestResource2')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSqlDest')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_InsertOrUpdate')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "DF_InsertOrUpdate",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "Lookup1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DF_InsertOrUpdate",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"source1": {
+										"pFileName": "product_excel.xlsx"
+									},
+									"sink1": {
+										"pTableName": "dwsProduct"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select Value from dbo.PSTConfigs where \"Key\"='SSISAdminEmail'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference",
+								"parameters": {
+									"pTableName": "PSTConfigs"
+								}
+							}
+						}
+					},
+					{
+						"name": "SendEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "DF_InsertOrUpdate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Finished\",\n\"message\":\"Pipleline Run SuccessFully\",\n\"color\":\"green\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SendErrorEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "DF_InsertOrUpdate",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Failed\",\n\"message\":\"Pipleline Run Failed\",\n\"color\":\"red\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-12-10T10:29:13Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DF_InsertOrUpdate')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSqlDest')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_RestApi')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy Rest api data1",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Lookup1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"sqlWriterStoredProcedureName": "dbo.sp_dwsUpsertCity",
+								"sqlWriterTableType": "dwsRestType",
+								"storedProcedureTableTypeParameterName": "CityType"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "$['city']"
+										},
+										"sink": {
+											"name": "City",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['name']"
+										},
+										"sink": {
+											"name": "Name",
+											"type": "String"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "RestResource1",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference",
+								"parameters": {
+									"pTableName": "dwsCity"
+								}
+							}
+						]
+					},
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select Value from dbo.PSTConfigs where \"Key\"='SSISAdminEmail'",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference",
+								"parameters": {
+									"pTableName": "PSTConfigs"
+								}
+							}
+						}
+					},
+					{
+						"name": "SendEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Copy Rest api data1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Finished\",\n\"message\":\"Pipleline Run SuccessFully\",\n\"color\":\"green\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "SendErrorEmail",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Copy Rest api data1",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\n\"title\":\"Pipeline Run Failed\",\n\"message\":\"Pipleline Run Failed\",\n\"color\":\"red\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2020-12-11T09:30:24Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/RestResource1')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSqlDest')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlDest')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "PSTSSIS",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"pTableName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "ProductID",
+						"type": "varchar"
+					},
+					{
+						"name": "ProductName",
+						"type": "varchar"
+					},
+					{
+						"name": "Price",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "ValidDate",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().pTableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/PSTSSIS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ExcelSource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "SSISBlob",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"pFileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Excel",
+				"typeProperties": {
+					"sheetName": "Sheet1",
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().pFileName",
+							"type": "Expression"
+						},
+						"folderPath": "ssis-blob-folder",
+						"container": "ssis-blob"
+					},
+					"firstRowAsHeader": true
+				},
+				"schema": [
+					{
+						"name": "ProductID",
+						"type": "String"
+					},
+					{
+						"name": "ProductName",
+						"type": "String"
+					},
+					{
+						"name": "Price",
+						"type": "String"
+					},
+					{
+						"name": "ValidDate",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/SSISBlob')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RestResource1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RestApiSource",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/RestApiSource')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RestResource2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RestService2",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/RestService2')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PSTSSIS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('PSTSSIS_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RestApiSource')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('RestApiSource_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RestService2')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('RestService2_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SSISBlob')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('SSISBlob_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DF_InsertOrUpdate')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ExcelSource",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						}
+					],
+					"transformations": [
+						{
+							"name": "AlterRow1"
+						}
+					],
+					"script": "source(output(\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as float,\n\t\tValidDate as date\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> source1\nsource1 alterRow(upsertIf(true())) ~> AlterRow1\nAlterRow1 sink(input(\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as double,\n\t\tValidDate as timestamp\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['ProductID'],\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink1"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ExcelSource')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSqlDest')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Load_Excel_to_Multi_Tables')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ExcelSource",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						},
+						{
+							"dataset": {
+								"referenceName": "AzureSqlDest",
+								"type": "DatasetReference"
+							},
+							"name": "sink3"
+						}
+					],
+					"transformations": [
+						{
+							"name": "Select1"
+						},
+						{
+							"name": "AlterRow2"
+						},
+						{
+							"name": "Select2"
+						},
+						{
+							"name": "AlterRow3"
+						}
+					],
+					"script": "source(output(\n\t\tOrderID as string,\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as short,\n\t\tValidDate as date\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> source1\nsource1 select(mapColumn(\n\t\tOrderID,\n\t\tValidDate\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nSelect1 alterRow(upsertIf(true())) ~> AlterRow2\nsource1 select(mapColumn(\n\t\tOrderID,\n\t\tProductID,\n\t\tProductName,\n\t\tPrice\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select2\nSelect2 alterRow(upsertIf(true())) ~> AlterRow3\nAlterRow2 sink(input(\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as double,\n\t\tValidDate as timestamp\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['OrderID'],\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink2\nAlterRow3 sink(input(\n\t\tProductID as string,\n\t\tProductName as string,\n\t\tPrice as double,\n\t\tValidDate as timestamp\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['ProductID'],\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink3"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ExcelSource')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSqlDest')]"
+			]
+		}
+	]
+}
