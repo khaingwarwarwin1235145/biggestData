@@ -1,0 +1,370 @@
+{
+	"name": "PL_ExchangeRateRestApi",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy data1",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET"
+					},
+					"sink": {
+						"type": "AzureSqlSink"
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['rates']['CAD']"
+								},
+								"sink": {
+									"name": "CAD"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['HKD']"
+								},
+								"sink": {
+									"name": "HKD",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['ISK']"
+								},
+								"sink": {
+									"name": "ISK",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['PHP']"
+								},
+								"sink": {
+									"name": "PHP",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['DKK']"
+								},
+								"sink": {
+									"name": "DKK",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['HUF']"
+								},
+								"sink": {
+									"name": "HUF",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['CZK']"
+								},
+								"sink": {
+									"name": "CZK",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['GBP']"
+								},
+								"sink": {
+									"name": "GBP",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['RON']"
+								},
+								"sink": {
+									"name": "RON",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['SEK']"
+								},
+								"sink": {
+									"name": "SEK",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['IDR']"
+								},
+								"sink": {
+									"name": "IDR",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['INR']"
+								},
+								"sink": {
+									"name": "INR",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['BRL']"
+								},
+								"sink": {
+									"name": "BRL",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['RUB']"
+								},
+								"sink": {
+									"name": "RUB",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['HRK']"
+								},
+								"sink": {
+									"name": "HRK",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['JPY']"
+								},
+								"sink": {
+									"name": "JPY",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['THB']"
+								},
+								"sink": {
+									"name": "THB",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['CHF']"
+								},
+								"sink": {
+									"name": "CHF",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['EUR']"
+								},
+								"sink": {
+									"name": "EUR",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['MYR']"
+								},
+								"sink": {
+									"name": "MYR",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['BGN']"
+								},
+								"sink": {
+									"name": "BGN",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['TRY']"
+								},
+								"sink": {
+									"name": "TRY",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['CNY']"
+								},
+								"sink": {
+									"name": "CNY",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['NOK']"
+								},
+								"sink": {
+									"name": "NOK",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['NZD']"
+								},
+								"sink": {
+									"name": "NDZ",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['ZAR']"
+								},
+								"sink": {
+									"name": "ZAR",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['USD']"
+								},
+								"sink": {
+									"name": "USD",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['MXN']"
+								},
+								"sink": {
+									"name": "MXN",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['SGD']"
+								},
+								"sink": {
+									"name": "SGD",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['AUD']"
+								},
+								"sink": {
+									"name": "AUD",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['ILS']"
+								},
+								"sink": {
+									"name": "ILS",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['KRW']"
+								},
+								"sink": {
+									"name": "KRW",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['rates']['PLN']"
+								},
+								"sink": {
+									"name": "PLN",
+									"type": "Decimal"
+								}
+							},
+							{
+								"source": {
+									"path": "$['base']"
+								},
+								"sink": {
+									"name": "Base",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date']"
+								},
+								"sink": {
+									"name": "Date",
+									"type": "DateTime"
+								}
+							}
+						],
+						"mapComplexValuesToString": false
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "RestResource2",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "AzureSqlDest",
+						"type": "DatasetReference",
+						"parameters": {
+							"pTableName": "dwsExchangeRate"
+						}
+					}
+				]
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2020-12-11T09:30:26Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

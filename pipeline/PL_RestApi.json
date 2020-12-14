@@ -1,0 +1,167 @@
+{
+	"name": "PL_RestApi",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy Rest api data1",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET"
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"sqlWriterStoredProcedureName": "dbo.sp_dwsUpsertCity",
+						"sqlWriterTableType": "dwsRestType",
+						"storedProcedureTableTypeParameterName": "CityType"
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['city']"
+								},
+								"sink": {
+									"name": "City",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['name']"
+								},
+								"sink": {
+									"name": "Name",
+									"type": "String"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "RestResource1",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "AzureSqlDest",
+						"type": "DatasetReference",
+						"parameters": {
+							"pTableName": "dwsCity"
+						}
+					}
+				]
+			},
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select Value from dbo.PSTConfigs where \"Key\"='SSISAdminEmail'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "AzureSqlDest",
+						"type": "DatasetReference",
+						"parameters": {
+							"pTableName": "PSTConfigs"
+						}
+					}
+				}
+			},
+			{
+				"name": "SendEmail",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Copy Rest api data1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+					"method": "POST",
+					"body": {
+						"value": "{\n\"title\":\"Pipeline Run Finished\",\n\"message\":\"Pipleline Run SuccessFully\",\n\"color\":\"green\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "SendErrorEmail",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Copy Rest api data1",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://prod-15.australiasoutheast.logic.azure.com:443/workflows/e2fa1962d3634042bd49f8c332d54902/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNhZZOnig_-lpqMyTEIvQvZmlKgUIt2e8xtHg3mmwGc",
+					"method": "POST",
+					"body": {
+						"value": "{\n\"title\":\"Pipeline Run Failed\",\n\"message\":\"Pipleline Run Failed\",\n\"color\":\"red\",\n\"dataFactoryName\":\"@{pipeline().DataFactory}\",\n\"pipeLineName\":\"@{pipeline().Pipeline}\",\n\"pipeLineRunId\":\"@{pipeline().RunId}\",\n\"time\":\"@{utcnow()}\",\n\"toEmail\":\"@{activity('Lookup1').output.firstRow.Value}\"\n}",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2020-12-11T09:30:24Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

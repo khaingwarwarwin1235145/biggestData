@@ -1,0 +1,45 @@
+{
+	"name": "AzureSqlDest",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "PSTSSIS",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"pTableName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "ProductID",
+				"type": "varchar"
+			},
+			{
+				"name": "ProductName",
+				"type": "varchar"
+			},
+			{
+				"name": "Price",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "ValidDate",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": {
+				"value": "@dataset().pTableName",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
